@@ -1,0 +1,2 @@
+# Runtime data directory — contents are git-ignored.
+# taskflow.db and error.log are created at runtime.

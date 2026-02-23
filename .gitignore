@@ -1,0 +1,22 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Runtime data
+data/taskflow.db
+data/*.log
+data/*.db
+
+# Coverage & test artefacts
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Editor
+.vscode/
+.idea/
+*.swp
