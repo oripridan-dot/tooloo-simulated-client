@@ -1,4 +1,4 @@
-"""Users router — N+1 query anti-pattern in /users/{id}/tasks."""
+"""Users router — N+1 query anti-pattern fixed by TooLoo eradication mandate."""
 
 from datetime import datetime
 
@@ -66,15 +66,10 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{user_id}/tasks", response_model=list[TaskSummary])
 def get_user_tasks(user_id: int, db: Session = Depends(get_db)):
-    """Return all tasks owned by a user.
-
-    BUG: This does a Python-level loop instead of a proper WHERE clause JOIN,
-    simulating an N+1 anti-pattern.
-    """
+    """Return all tasks owned by a user using a single SQL WHERE filter."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # N+1 anti-pattern: fetches ALL tasks then filters in Python
-    all_tasks = db.query(Task).all()
-    return [t for t in all_tasks if t.owner_id == user_id]
+    # FIX 3: single SQL WHERE clause — no N+1 Python filtering
+    return db.query(Task).filter(Task.owner_id == user_id).all()
