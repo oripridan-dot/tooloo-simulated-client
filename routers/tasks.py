@@ -1,6 +1,7 @@
-"""Tasks router — contains intentional bugs for TooLoo to discover."""
+"""Tasks router — bugs fixed by TooLoo Git-Mind Protocol."""
 
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -17,15 +18,16 @@ router = APIRouter()
 class TaskCreate(BaseModel):
     title: str
     description: str | None = None
-    # BUG: priority accepts any string — should be Literal["low", "medium", "high"]
-    priority: str = "medium"
+    # FIX 1: priority is now a typed enum — rejects invalid values at parse time
+    priority: Literal["low", "medium", "high"] = "medium"
     owner_id: int | None = None
 
 
 class TaskUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
-    priority: str | None = None
+    # FIX 1 (continued): enum enforced on updates too
+    priority: Literal["low", "medium", "high"] | None = None
     status: str | None = None
 
 
@@ -73,17 +75,18 @@ def update_task(task_id: int, payload: TaskUpdate, db: Session = Depends(get_db)
         raise HTTPException(status_code=404, detail="Task not found")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(task, field, value)
-    # BUG: updated_at is never set here
+    # FIX 5: stamp updated_at on every mutation
+    task.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     db.commit()
     db.refresh(task)
     return task
 
 
-@router.delete("/{task_id}")
+@router.delete("/{task_id}", status_code=204)
 def delete_task(task_id: int, db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
-    # BUG: returns 200 {"deleted": True} even when task == None
-    if task:
-        db.delete(task)
-        db.commit()
-    return {"deleted": True}
+    # FIX 2: raise 404 when task does not exist instead of silently returning 200
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    db.delete(task)
+    db.commit()
